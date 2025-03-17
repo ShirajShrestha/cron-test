@@ -45,7 +45,7 @@ jobs:
           echo "Saving Ruby environment..."
           tar -czf ruby_env.tar.gz $(bundle show --paths)
       - name: Upload artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: ruby_env
           path: ruby_env.tar.gz

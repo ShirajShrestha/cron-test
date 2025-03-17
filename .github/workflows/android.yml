@@ -23,6 +23,16 @@ jobs:
           name: ruby_env
           path: .
 
+      - name: Verify artifact exists
+        run: |
+          echo "Checking if ruby_env.tar.gz exists..."
+          if [ -f ruby_env.tar.gz ]; then
+            echo "Artifact exists."
+          else
+            echo "Artifact not found!"
+            exit 1
+          fi
+
       - name: Restore Ruby environment
         run: |
           echo "Restoring Ruby environment..."
@@ -37,6 +47,11 @@ jobs:
         run: |
           echo "Updated at $(date)" >> version.txt
           cat version.txt
+
+      - name: Install GitHub CLI
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gh
 
       - name: Create Pull Request
         id: cpr
