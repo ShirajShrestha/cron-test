@@ -1,20 +1,59 @@
-name: Cron Test
+name: Scheduled Deploy
 
 on:
   schedule:
     - cron: '*/15 * * * *'
 
 jobs:
-  cron-test:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Print the current date and time
-        run: echo "Cron job executed at $(date)"
-        
-      - name: Run cron job
-        run: echo "Cron job executed at $(date)"
-
   trigger-build:
     uses: ./.github/workflows/build-and-deploy.yml
     with:
       variant: 'staging'
+
+  update-and-merge:
+    runs-on: ubuntu-latest
+    needs: [trigger-build]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download Ruby environment artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: ruby_env
+          path: .
+
+      - name: Restore Ruby environment
+        run: |
+          echo "Restoring Ruby environment..."
+          tar -xzf ruby_env.tar.gz
+
+      - name: Verify Ruby environment
+        run: |
+          echo "Ruby version: $(ruby -v)"
+          echo "Bundler version: $(bundle -v)"
+
+      - name: Update a file (Simulate build number update)
+        run: |
+          echo "Updated at $(date)" >> version.txt
+          cat version.txt
+
+      - name: Create Pull Request
+        id: cpr
+        uses: peter-evans/create-pull-request@v5
+        with:
+          add-paths: |
+            version.txt
+          branch: scheduled-deploy-${{ github.run_id }}
+          base: main
+          title: 'Update version.txt'
+          commit-message: 'Update version.txt'
+          body: |
+            Automated update to version.txt.
+          labels: 'ci'
+
+      - name: Merge Pull Request
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Use GITHUB_TOKEN for simplicity
+        run: |
+          gh pr merge ${{ steps.cpr.outputs.pull-request-number }} --squash --admin

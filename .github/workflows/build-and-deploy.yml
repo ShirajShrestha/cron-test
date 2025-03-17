@@ -21,6 +21,31 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Print variant
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3.4'  
+
+      - name: Install Bundler
+        run: gem install bundler
+
+      - name: Install dependencies
+        run: bundle install
+
+      - name: Simulate build process
         run: |
-          echo "Building ${{ inputs.variant }}"
+          echo "Building ${{ inputs.variant }} version..."
+          echo "Build completed at $(date)"
+
+      - name: Save Ruby environment as artifact
+        run: |
+          echo "Saving Ruby environment..."
+          tar -czf ruby_env.tar.gz $(bundle show --paths)
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: ruby_env
+          path: ruby_env.tar.gz

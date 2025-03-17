@@ -1,0 +1,11 @@
+name: Scheduled Staging iOS Deploy 
+
+on: 
+  schedule:
+    - cron: '15 3 1 * *'
+
+jobs:
+  trigger-build:
+    uses: ./.github/workflows/build-and-deploy-ios.yml
+    with:
+      variant: 'staging'
