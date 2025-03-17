@@ -3,7 +3,7 @@ name: Cron Test
 on:
   # Run every minute
   schedule:
-    - cron: '*/1 * * * *'
+    - cron: '*/5 * * * *'
   
   # Allow manual trigger with variant selection
   # workflow_dispatch:
