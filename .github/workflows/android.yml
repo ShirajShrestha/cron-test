@@ -6,16 +6,16 @@ on:
     - cron: '*/1 * * * *'
   
   # Allow manual trigger with variant selection
-  workflow_dispatch:
-    inputs:
-      variant:
-        type: choice
-        description: Select build variant
-        default: "staging"
-        options:
-          - staging
-          - production
-        required: true
+  # workflow_dispatch:
+  #   inputs:
+  #     variant:
+  #       type: choice
+  #       description: Select build variant
+  #       default: "staging"
+  #       options:
+  #         - staging
+  #         - production
+  #       required: true
 
 jobs:
   cron-test:
