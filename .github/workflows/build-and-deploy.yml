@@ -1,0 +1,25 @@
+name: Build and Deploy
+on:
+  repository_dispatch:
+    types:
+      - build-and-deploy
+  
+  workflow_dispatch:
+    inputs:
+      variant:
+        type: choice
+        description: Select build variant
+        default: "staging"
+        options:
+          - staging
+          - production
+        required: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Print event payload and variant
+        run: |
+          echo "${{ toJson(github.event) }}"
+          echo "Variant: ${{ github.event.client_payload.variant}}"
