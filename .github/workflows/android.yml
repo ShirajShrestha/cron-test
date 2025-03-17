@@ -1,28 +1,69 @@
-name: Cron Test Every 8 Minutes
+name: Cron Test
 
 on:
-  # Run every minute
   schedule:
-    - cron: '*/8 * * * *'
+    - cron: '*/5 * * * *'  # Set this to run every 5 minutes for testing
   
   # Allow manual trigger with variant selection
-  # workflow_dispatch:
-  #   inputs:
-  #     variant:
-  #       type: choice
-  #       description: Select build variant
-  #       default: "staging"
-  #       options:
-  #         - staging
-  #         - production
-  #       required: true
+  workflow_dispatch:
+
+permissions:
+  contents: write  # Required for making changes to the repo
+  actions: read    # Allows the action to read and interact with other actions
 
 jobs:
   cron-test:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Print the current date and time
-        run: echo "Cron job executed at $(date)"
+      # Step 1: Print current time and details to check if workflow is running
+      - name: Print current time and cron job details
+        run: |
+          echo "Cron job executed at $(date)"
+          echo "Scheduled cron: '*/5 * * * *'"
         
-      - name: Run cron job
-        run: echo "Cron job executed at $(date)"
+      # Step 2: Check current branch
+      - name: Check current branch
+        run: |
+          echo "Current branch: $(git branch --show-current)"
+          if [ "$(git branch --show-current)" != "main" ]; then
+            echo "Error: Workflow should be on the default 'main' branch. Current branch is $(git branch --show-current)"
+            exit 1
+          fi
+
+      # Step 3: Check if actions permissions are set properly
+      - name: Check actions permissions
+        run: |
+          echo "Checking GitHub Actions permissions"
+          if [[ -z "${GITHUB_TOKEN}" ]]; then
+            echo "Error: GITHUB_TOKEN is not set. Permissions are required for the workflow."
+            exit 1
+          fi
+          echo "GITHUB_TOKEN is set"
+
+      # Step 4: Check if workflow file path is correct
+      - name: Check workflow file path
+        run: |
+          echo "Checking workflow file path"
+          if [ ! -f ".github/workflows/android.yml" ]; then
+            echo "Error: Workflow file does not exist in the expected path (.github/workflows/android.yml)"
+            exit 1
+          else
+            echo "Workflow file exists at .github/workflows/android.yml"
+          fi
+
+      # Step 5: List all files in the .github/workflows directory for debugging
+      - name: List workflow files for debugging
+        run: |
+          echo "Listing files in .github/workflows:"
+          ls -l .github/workflows/
+        
+      # Step 6: Checkout the code
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Step 7: Run cron job (this is where you execute your task)
+      - name: Run cron job task
+        run: |
+          echo "Running cron task at $(date)"
+          # Add your task here, for example, a test task or build script
