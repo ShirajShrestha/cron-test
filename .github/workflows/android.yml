@@ -1,4 +1,4 @@
-name: Cron Test
+name: Cron Test!
 
 on:
   # Run every minute
@@ -21,8 +21,8 @@ jobs:
   cron-test:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - name: Print the current date and time
+        run: echo "Cron job executed at $(date)"
         
       - name: Run cron job
         run: echo "Cron job executed at $(date)"
