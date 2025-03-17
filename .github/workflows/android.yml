@@ -1,4 +1,4 @@
-name: Cron Test!
+name: Cron Test Latest
 
 on:
   # Run every minute
