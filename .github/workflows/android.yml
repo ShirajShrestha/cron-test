@@ -1,9 +1,9 @@
-name: Cron Test Latest
+name: Cron Test Every 8 Minutes
 
 on:
   # Run every minute
   schedule:
-    - cron: '*/5 * * * *'
+    - cron: '*/8 * * * *'
   
   # Allow manual trigger with variant selection
   # workflow_dispatch:
