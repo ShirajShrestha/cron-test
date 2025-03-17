@@ -3,7 +3,7 @@ run-name: (${{ inputs.variant == 'staging' && 'Staging' || inputs.variant == 'pr
 
 on:
   schedule:
-    - cron: '*/1 * * * *'
+    - cron: "*/1 * * * *"
   # workflow_dispatch:
   #   inputs:
   #     variant:
