@@ -2,7 +2,7 @@ name: Cron Test
 
 on:
   schedule:
-    - cron: '*/5 * * * *'  # Set this to run every 5 minutes for testing
+    - cron: '*/5 * * * *'  # Run every 5 minutes for testing
   
   # Allow manual trigger with variant selection
   workflow_dispatch:
@@ -16,13 +16,17 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # Step 1: Print current time and details to check if workflow is running
+      # Step 1: Checkout code
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Step 2: Print current time and cron job details
       - name: Print current time and cron job details
         run: |
           echo "Cron job executed at $(date)"
           echo "Scheduled cron: '*/5 * * * *'"
         
-      # Step 2: Check current branch
+      # Step 3: Check current branch (now after checkout)
       - name: Check current branch
         run: |
           echo "Current branch: $(git branch --show-current)"
@@ -31,7 +35,7 @@ jobs:
             exit 1
           fi
 
-      # Step 3: Check if actions permissions are set properly
+      # Step 4: Check if actions permissions are set properly
       - name: Check actions permissions
         run: |
           echo "Checking GitHub Actions permissions"
@@ -41,7 +45,7 @@ jobs:
           fi
           echo "GITHUB_TOKEN is set"
 
-      # Step 4: Check if workflow file path is correct
+      # Step 5: Check if workflow file path is correct
       - name: Check workflow file path
         run: |
           echo "Checking workflow file path"
@@ -52,16 +56,12 @@ jobs:
             echo "Workflow file exists at .github/workflows/android.yml"
           fi
 
-      # Step 5: List all files in the .github/workflows directory for debugging
+      # Step 6: List all files in the .github/workflows directory for debugging
       - name: List workflow files for debugging
         run: |
           echo "Listing files in .github/workflows:"
           ls -l .github/workflows/
         
-      # Step 6: Checkout the code
-      - name: Checkout code
-        uses: actions/checkout@v4
-
       # Step 7: Run cron job (this is where you execute your task)
       - name: Run cron job task
         run: |
