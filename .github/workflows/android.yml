@@ -1,0 +1,165 @@
+name: Build and Upload iOS
+run-name: (${{ inputs.variant == 'staging' && 'Staging' || inputs.variant == 'production' && 'Production' || 'Scheduled'}}) Build and Upload iOS
+
+on:
+  schedule:
+    - cron: "* * * * *"
+  workflow_dispatch:
+    inputs:
+      variant:
+        type: choice
+        description: Select build variant
+        default: "staging"
+        options:
+          - staging
+          - production
+        required: true
+
+jobs:
+  build-and-deploy:
+    name: (${{ inputs.variant == 'staging' && 'Staging' || inputs.variant == 'production' && 'Production' || 'Scheduled'}}) Build and Upload iOS App
+    runs-on: macos-latest
+    env:
+      VARIANT: ${{ github.event_name == 'schedule' && 'staging' || inputs.variant }}
+      PROVISION_PATH: "provision.mobileprovision"
+      CERTIFICATE_PATH: "certificate.p12"
+      PLIST_PATH: "${{ github.event_name == 'schedule' && 'ios/Firebase/Staging/GoogleService-Info.plist' || inputs.variant == 'production' && 'ios/Firebase/Production/GoogleService-Info.plist' || 'ios/Firebase/Staging/GoogleService-Info.plist' }}"
+
+    steps:
+      - name: ⬇️ Checkout
+        uses: actions/checkout@v4
+
+      - name: 🔍 Validate & Create Environment Files
+        env:
+          DOT_ENV_FILE: .env.${{ env.VARIANT}}
+          DOT_ENV_FASTLANE_FILE: .env.fastlane.${{ env.VARIANT }}
+
+          DOT_ENV: "${{ env.VARIANT == 'production' && secrets.DOT_ENV_PRODUCTION || secrets.DOT_ENV_STAGING }}"
+          DOT_ENV_FASTLANE: "${{ env.VARIANT == 'production' && secrets.DOT_ENV_FASTLANE_PRODUCTION || secrets.DOT_ENV_FASTLANE_STAGING }}"
+          P12: "${{ env.VARIANT == 'production' && secrets.P12_PRODUCTION || secrets.P12_STAGING }}"
+          PROVISION: "${{ env.VARIANT == 'production' && secrets.PROVISION_PRODUCTION || secrets.PROVISION_STAGING }}"
+          PLIST: "${{ env.VARIANT == 'production' && secrets.PLIST_PRODUCTION || secrets.PLIST_STAGING }}"
+
+        shell: bash
+        run: |
+          # Validate required secrets first to fail fast
+          echo "Checking required secrets..."
+          [[ -z "$P12" ]] && echo "::error::Missing P12 certificate secret" && exit 1
+          [[ -z "$PROVISION" ]] && echo "::error::Missing provisioning profile secret" && exit 1
+          [[ -z "$PLIST" ]] && echo "::error::Missing Firebase plist secret" && exit 1
+          [[ -z "$DOT_ENV" ]] && echo "::error::Missing environment config secret" && exit 1
+          [[ -z "$DOT_ENV_FASTLANE" ]] && echo "::error::Missing Fastlane environment config secret" && exit 1
+
+          # Create environment files since validation passed
+          echo "$DOT_ENV" > "$DOT_ENV_FILE"
+          echo "$DOT_ENV_FASTLANE" > "$DOT_ENV_FASTLANE_FILE"
+          echo "$P12" | base64 --decode > "$CERTIFICATE_PATH"
+          echo "$PROVISION" | base64 --decode > "$PROVISION_PATH"
+          echo "$PLIST" | base64 --decode > "$PLIST_PATH"
+
+          # Verify files were created
+          [[ ! -f $DOT_ENV_FILE ]] && echo "::error::Failed to create .env file" && exit 1
+          [[ ! -f $DOT_ENV_FASTLANE_FILE ]] && echo "::error::Failed to create Fastlane env file" && exit 1
+          [[ ! -f "$CERTIFICATE_PATH" ]] && echo "::error::Failed to create certificate file" && exit 1
+          [[ ! -f "$PROVISION_PATH" ]] && echo "::error::Failed to create provisioning profile" && exit 1
+          [[ ! -f "$PLIST_PATH" ]] && echo "::error::Failed to create Firebase config" && exit 1
+
+          echo "✅ All environment files created successfully"
+
+      # - name: Setup 🔗 Node, 💎 Ruby, 🧶 Yarn and ⚙️ Install Dependencies
+      #   uses: ./.github/actions/prepare-mobile-deps
+
+      # - name: ⚒️ Setup XCode
+      #   uses: maxim-lobanov/setup-xcode@v1
+      #   with:
+      #     xcode-version: "15.4.0"
+
+      # - name: ☕ Setup Cocoapods
+      #   uses: maxim-lobanov/setup-cocoapods@v1
+      #   with:
+      #     podfile-path: ios/Podfile.lock
+
+      # - name: 💾 Cache Podfile
+      #   uses: actions/cache@v4
+      #   with:
+      #     path: ios/Pods
+      #     key: ${{ runner.os }}-pods-${{ hashFiles('ios/Podfile.lock') }}
+      #     restore-keys: |
+      #       ${{ runner.os }}-pods-
+
+      # - name: ☕ ⚒️ Pod install
+      #   shell: bash
+      #   run: pod install --project-directory=ios
+
+      # - name: ⏳ Build App
+      #   # provision profile and certificate path are different in CI and local
+      #   # Override them when running in CI
+      #   run: |
+      #     bundle exec fastlane ios build \
+      #     provisioning_profile_path:"$PROVISION_PATH" \
+      #     certificate_path:"$CERTIFICATE_PATH" \
+      #     --env fastlane.${{ env.VARIANT }}
+
+      # - name: 🚀 Upload App to TestFlight
+      #   run: |
+      #     bundle exec fastlane ios upload_testflight --env fastlane.${{ env.VARIANT }}
+
+      # - name: 🔣 Upload Symbols
+      #   run: |
+      #     bundle exec fastlane ios upload_dysm \
+      #     gsp_path:"$PLIST_PATH" \
+      #     --env fastlane.${{ env.VARIANT }}
+
+  create-and-merge-pull-request:
+    if: github.event_name == 'schedule'
+    needs: [build-and-deploy]
+    name: Create and Merge Pull Request
+    runs-on: macos-latest
+    steps:
+      - name: Update iOS build code
+        run: bundle exec fastlane ios bumpup_build_number --env staging
+
+      - name: Get Build Number
+        id: get-build-number
+        run: |
+          cd ios
+          echo "BUILD_NUMBER=$(agvtool what-version -terse)" >> $GITHUB_ENV
+
+      - name: Create pull Request
+        id: cpr
+        uses: peter-evans/create-pull-request@v5
+        with:
+          add-paths: |
+            ios/**
+          branch: scheduled-deploy-${{ github.run_id }}
+          base: develop
+          title: "Deploy iOS Build ${{ steps.get-build-number.outputs.build_number }}"
+          commit-message: "(Github Actions): Increment iOS build number ${{ steps.get-build-number.outputs.build_number }}"
+          body: |
+            Scheduled iOS build deploy - ${{github.run_id}}.
+          labels: "ci"
+
+      - name: Merge Pull Request ${{ steps.cpr.outputs.pull-request-number }}
+        env:
+          GH_TOKEN: ${{ secrets.PAT }}
+        run: |
+          gh pr merge ${{ steps.cpr.outputs.pull-request-number }} --squash --admin
+
+  # slack-notification:
+  #   if: ${{ always() }}
+  #   needs: [build-and-deploy]
+  #   name: Send Slack Notification
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - name: Checkout Repository
+  #       uses: actions/checkout@v4
+
+  #     - name: Send Slack Notification
+  #       uses: ./.github/actions/slack-notification
+  #       with:
+  #         webhook: ${{ secrets.SLACK_WEBHOOK }}
+  #         channel: 'riverexpress-mobile-deploy'
+  #         variant: ${{ inputs.variant }}
+  #         platform: 'iOS'
+  #         result: ${{ needs.build-and-deploy.result }}
+  #         slack_icon_emoji: ':ios:'
