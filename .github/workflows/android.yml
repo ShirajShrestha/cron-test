@@ -4,16 +4,16 @@ run-name: (${{ inputs.variant == 'staging' && 'Staging' || inputs.variant == 'pr
 on:
   schedule:
     - cron: "* * * * *"
-  workflow_dispatch:
-    inputs:
-      variant:
-        type: choice
-        description: Select build variant
-        default: "staging"
-        options:
-          - staging
-          - production
-        required: true
+  # workflow_dispatch:
+  #   inputs:
+  #     variant:
+  #       type: choice
+  #       description: Select build variant
+  #       default: "staging"
+  #       options:
+  #         - staging
+  #         - production
+  #       required: true
 
 jobs:
   build-and-deploy:
